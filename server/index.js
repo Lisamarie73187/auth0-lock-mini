@@ -17,8 +17,26 @@ app.use(session({
 app.use(express.static(`${__dirname}/../build`));
 
 app.post('/login', (req, res) => {
-  // Add code here
-});
+  const { userId } = req.body;
+  const auth0Url = `https://${process.env.REACT_APP_AUTH0_DOMAIN}/api/v2/users/${userId}`;
+  axios.get(auth0Url, {headers: {Authorization: 'Bearer ' + 
+  process.env.AUTH0_MANAGEMENT_ACCESS_TOKEN}}).then( response => {
+   app.get('db').find_user_by_auth0_id(response.data.user_id).then(users => {
+     if(users.length) {
+       req.session.user = user[0];
+       res.json({ user: req.session.user });
+     }else {
+       app.get('db').create_user([response.data.user_id, response.data.email]).then((newUsers) => {
+         req.session.user = newUsers[0];
+         res.json({ user: req.session.user });
+       })
+     }
+   })
+  }).catch(error => {
+    console.error(error)
+    res.status(500).json({ message: 'Oh No!'})
+  })
+})
 
 app.post('/logout', (req, res) => {
   req.session.destroy();
